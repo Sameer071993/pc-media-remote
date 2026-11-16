@@ -1,0 +1,57 @@
+{
+  "name": "pc-remote-app",
+  "version": "1.0.0",
+  "description": "Secure, ultra-lightweight local Wi-Fi Laptop Media Remote using Node.js, Express, and Socket.io",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/verify.js",
+    "electron": "electron .",
+    "build:exe": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.pcremote.app",
+    "productName": "PC Media Remote",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "server.js",
+      "src/**/*",
+      "public/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "public/icon-512.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "keywords": [
+    "media-remote",
+    "wifi-remote",
+    "socket.io",
+    "express"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron": "^45.3.3",
+    "electron-builder": "^26.18.0",
+    "socket.io-client": "^4.8.1"
+  }
+}

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PC Media Remote</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --surface: #121216;
+      --surface-2: #1a1a20;
+      --border: #25252d;
+      --text: #f4f4f5;
+      --muted: #9ca3af;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.14);
+      --red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 18px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .title-group h1 {
+      margin: 0;
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .title-group p {
+      margin: 2px 0 0;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      font-weight: 600;
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    /* QR Section */
+    .qr-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .qr-box {
+      background: #ffffff;
+      padding: 10px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 176px;
+      height: 176px;
+    }
+
+    .qr-box img {
+      width: 156px;
+      height: 156px;
+      display: block;
+    }
+
+    .url-row {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .url-text {
+      flex: 1;
+      min-width: 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.76rem;
+      color: #d4d4d8;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      user-select: text;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.08s ease;
+    }
+
+    button:hover {
+      background: #23232b;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    .btn-accent {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: rgba(59, 130, 246, 0.45);
+      color: #93c5fd;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    /* PIN Card */
+    .pin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .pin-display {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pin-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .seg {
+      display: flex;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2px;
+    }
+
+    .seg button {
+      border: none;
+      background: transparent;
+      padding: 6px 10px;
+      font-size: 0.74rem;
+      color: var(--muted);
+      border-radius: 8px;
+    }
+
+    .seg button.active {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .pin-input {
+      width: 76px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: #fff;
+      text-align: center;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      outline: none;
+      user-select: text;
+    }
+
+    .pin-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Settings Row */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+
+    .switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      display: inline-block;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #27272f;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .switch input:checked + .slider {
+      background: var(--accent);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(18px);
+    }
+
+    /* Activity Log */
+    .log-card {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-list {
+      flex: 1;
+      overflow-y: auto;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-item span {
+      color: #71717a;
+      margin-right: 6px;
+    }
+
+    /* Footer */
+    .footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="title-group">
+      <h1>PC Media Remote</h1>
+      <p id="clientsText">0 phones connected</p>
+    </div>
+    <div class="status-pill">
+      <span class="dot"></span>
+      <span id="statusText">Running</span>
+    </div>
+  </header>
+
+  <section class="card qr-card">
+    <div class="qr-box">
+      <img id="qrImg" alt="Scan QR Code" />
+    </div>
+    <div class="url-row">
+      <div id="urlText" class="url-text">Starting server...</div>
+      <button type="button" id="copyBtn" class="btn-accent">Copy</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="pin-header">
+      <span class="section-label">Session PIN</span>
+      <span id="pinDisplay" class="pin-display">----</span>
+    </div>
+    <div class="pin-controls">
+      <div class="seg">
+        <button type="button" id="modeFixed" class="active">Fixed</button>
+        <button type="button" id="modeRandom">Random</button>
+      </div>
+      <input id="fixedPinInput" class="pin-input" type="text" maxlength="4" inputmode="numeric" placeholder="4927" />
+      <button type="button" id="applyPinBtn" class="btn-accent" style="margin-left: auto;">Apply</button>
+    </div>
+  </section>
+
+  <section class="card setting-row">
+    <span>Start automatically with Windows</span>
+    <label class="switch">
+      <input type="checkbox" id="autoStartToggle" />
+      <span class="slider"></span>
+    </label>
+  </section>
+
+  <section class="card log-card">
+    <div class="section-label">Activity</div>
+    <div id="logList" class="log-list"></div>
+  </section>
+
+  <footer class="footer">
+    <button type="button" id="restartBtn">Restart</button>
+    <button type="button" id="trayBtn">Hide to Tray</button>
+    <button type="button" id="quitBtn" class="btn-danger">Quit</button>
+  </footer>
+
+  <script>
+    (function () {
+      const qrImg = document.getElementById('qrImg');
+      const urlText = document.getElementById('urlText');
+      const copyBtn = document.getElementById('copyBtn');
+      const pinDisplay = document.getElementById('pinDisplay');
+      const clientsText = document.getElementById('clientsText');
+      const modeFixed = document.getElementById('modeFixed');
+      const modeRandom = document.getElementById('modeRandom');
+      const fixedPinInput = document.getElementById('fixedPinInput');
+      const applyPinBtn = document.getElementById('applyPinBtn');
+      const autoStartToggle = document.getElementById('autoStartToggle');
+      const logList = document.getElementById('logList');
+      const restartBtn = document.getElementById('restartBtn');
+      const trayBtn = document.getElementById('trayBtn');
+      const quitBtn = document.getElementById('quitBtn');
+
+      let selectedMode = 'fixed';
+
+      function render(state) {
+        if (!state) return;
+        if (state.qrDataUrl) qrImg.src = state.qrDataUrl;
+        urlText.textContent = state.url || 'Starting...';
+        pinDisplay.textContent = state.pin || '----';
+        clientsText.textContent =
+          state.connectedClients === 1
+            ? '1 phone connected'
+            : `${state.connectedClients || 0} phones connected`;
+
+        selectedMode = state.pinMode || 'fixed';
+        modeFixed.classList.toggle('active', selectedMode === 'fixed');
+        modeRandom.classList.toggle('active', selectedMode === 'random');
+        fixedPinInput.disabled = selectedMode === 'random';
+        if (document.activeElement !== fixedPinInput && state.fixedPin) {
+          fixedPinInput.value = state.fixedPin;
+        }
+        autoStartToggle.checked = Boolean(state.autoStart);
+
+        logList.innerHTML = (state.logs || [])
+          .map((item) => `<div class="log-item"><span>${item.time}</span>${item.message}</div>`)
+          .join('');
+      }
+
+      window.pcRemote.getState().then(render);
+      window.pcRemote.onStateUpdate(render);
+
+      modeFixed.addEventListener('click', () => {
+        selectedMode = 'fixed';
+        modeFixed.classList.add('active');
+        modeRandom.classList.remove('active');
+        fixedPinInput.disabled = false;
+      });
+
+      modeRandom.addEventListener('click', () => {
+        selectedMode = 'random';
+        modeRandom.classList.add('active');
+        modeFixed.classList.remove('active');
+        fixedPinInput.disabled = true;
+      });
+
+      applyPinBtn.addEventListener('click', async () => {
+        const pin = fixedPinInput.value.trim();
+        if (selectedMode === 'fixed' && !/^\d{4}$/.test(pin)) {
+          fixedPinInput.focus();
+          return;
+        }
+        const next = await window.pcRemote.savePinSettings({ pinMode: selectedMode, fixedPin: pin });
+        render(next);
+      });
+
+      autoStartToggle.addEventListener('change', async () => {
+        const next = await window.pcRemote.setAutoStart(autoStartToggle.checked);
+        render(next);
+      });
+
+      copyBtn.addEventListener('click', async () => {
+        await window.pcRemote.copyUrl();
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+      });
+
+      restartBtn.addEventListener('click', async () => {
+        const next = await window.pcRemote.restartServer();
+        render(next);
+      });
+
+      trayBtn.addEventListener('click', () => window.pcRemote.hideToTray());
+      quitBtn.addEventListener('click', () => window.pcRemote.quitApp());
+    })();
+  </script>
+</body>
+</html>

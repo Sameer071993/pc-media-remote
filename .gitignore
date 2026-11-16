@@ -1,0 +1,6 @@
+node_modules/
+dist/
+backup-working-node-app/
+.env
+*.log
+scratch_*

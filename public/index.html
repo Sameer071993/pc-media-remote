@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#09090b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <title>Laptop Media Remote</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #121215;
+      --surface-active: #222228;
+      --border: #24242a;
+      --text: #f4f4f5;
+      --muted: #8e8e93;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.25);
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.14);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.14);
+      --amber: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: manipulation;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 460px;
+      margin: 0 auto;
+      padding: max(12px, env(safe-area-inset-top)) 14px max(10px, env(safe-area-inset-bottom));
+      gap: 10px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .status-pill.connected {
+      color: var(--green);
+      background: var(--green-bg);
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .status-pill.disconnected {
+      color: var(--red);
+      background: var(--red-bg);
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-pill.connected .status-dot {
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    .battery-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .battery-badge.charging {
+      color: var(--green);
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .battery-badge.low {
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      padding: 0;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .icon-btn svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .icon-btn.hidden {
+      display: none;
+    }
+
+    /* Buttons */
+    button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 18px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 500;
+      transition: transform 0.08s ease, background-color 0.12s ease, border-color 0.12s ease;
+      touch-action: manipulation;
+    }
+
+    button:active {
+      transform: scale(0.95);
+      background: var(--surface-active);
+      border-color: #3a3a44;
+    }
+
+    button:disabled {
+      opacity: 0.38;
+      pointer-events: none;
+    }
+
+    button svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .btn-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    /* Tab Panels */
+    .tab-panels {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-panel {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .tab-panel.active {
+      display: flex;
+    }
+
+    /* Tab 1: Media */
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn-seek,
+    .btn-fs {
+      height: 68px;
+    }
+
+    .playback-row {
+      display: grid;
+      grid-template-columns: 1fr 1.45fr 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-track {
+      height: 82px;
+    }
+
+    .btn-play {
+      height: 112px;
+      border-radius: 26px;
+      background: linear-gradient(180deg, #1d283a 0%, #111827 100%);
+      border-color: rgba(59, 130, 246, 0.45);
+      box-shadow: 0 0 26px var(--accent-glow);
+    }
+
+    .btn-play svg {
+      width: 36px;
+      height: 36px;
+      color: #ffffff;
+    }
+
+    .btn-vol {
+      height: 74px;
+    }
+
+    /* Tab 2: Touchpad & Cast */
+    .trackpad {
+      flex: 1;
+      min-height: 150px;
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      background: radial-gradient(circle at center, #141419 0%, #09090b 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      touch-action: none;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .trackpad.touching {
+      border-color: rgba(59, 130, 246, 0.55);
+    }
+
+    .trackpad-hint {
+      pointer-events: none;
+      opacity: 0.65;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .btn-compact {
+      height: 48px;
+      flex-direction: row;
+      gap: 6px;
+      border-radius: 14px;
+      font-size: 0.8rem;
+    }
+
+    .btn-compact svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .url-form {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .url-input {
+      flex: 1;
+      min-width: 0;
+      height: 44px;
+      padding: 0 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.84rem;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .url-input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-open-url {
+      height: 44px;
+      padding: 0 14px;
+      border-radius: 14px;
+      flex-direction: row;
+      gap: 6px;
+      background: rgba(59, 130, 246, 0.16);
+      border-color: rgba(59, 130, 246, 0.4);
+      color: #93c5fd;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .btn-open-url svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .url-feedback {
+      min-height: 15px;
+      font-size: 0.72rem;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .url-feedback.ok { color: var(--green); }
+    .url-feedback.err { color: var(--red); }
+
+    .btn-launch {
+      height: 44px;
+      flex-direction: row;
+      gap: 6px;
+      border-radius: 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    /* Tab 3: Power & Display */
+    .section-card {
+      background: #0a0a0c;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .timer-countdown {
+      color: var(--amber);
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    .mode-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-mode {
+      height: 36px;
+      border-radius: 10px;
+      flex-direction: row;
+      font-size: 0.78rem;
+    }
+
+    .btn-mode.selected {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: var(--accent);
+      color: #bfdbfe;
+    }
+
+    .timer-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .btn-timer {
+      height: 40px;
+      border-radius: 10px;
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+
+    .btn-power-tile {
+      height: 62px;
+      border-radius: 16px;
+    }
+
+    .btn-shutdown {
+      width: 100%;
+      height: 48px;
+      border-radius: 14px;
+      flex-direction: row;
+      gap: 8px;
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.28);
+      color: #fca5a5;
+      font-size: 0.84rem;
+      font-weight: 600;
+    }
+
+    .btn-shutdown svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding-top: 6px;
+      border-top: 1px solid #18181b;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      height: 52px;
+      border-radius: 14px;
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      gap: 3px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .nav-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .nav-btn.active {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 60;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 340px;
+      background: #141418;
+      border: 1px solid #2b2b34;
+      border-radius: 22px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .modal h2 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+    }
+
+    .modal p {
+      margin: 0 0 18px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .modal-actions button {
+      height: 44px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .btn-danger {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+    }
+
+    .btn-primary {
+      width: 100%;
+      height: 46px;
+      border-radius: 12px;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .pin-input {
+      width: 100%;
+      height: 56px;
+      border-radius: 14px;
+      border: 1px solid #32323d;
+      background: #09090b;
+      color: #ffffff;
+      font-size: 1.7rem;
+      font-weight: 700;
+      letter-spacing: 0.45em;
+      text-align: center;
+      outline: none;
+      margin-bottom: 10px;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .pin-input:focus {
+      border-color: var(--accent);
+    }
+
+    .pin-error {
+      min-height: 18px;
+      font-size: 0.78rem;
+      color: var(--red);
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div id="statusPill" class="status-pill disconnected" role="status" aria-live="polite">
+        <span class="status-dot"></span>
+        <span id="statusText">Disconnected</span>
+      </div>
+
+      <div class="header-right">
+        <div id="batteryBadge" class="battery-badge" title="Laptop Battery">
+          <span id="batteryText">--%</span>
+        </div>
+        <button type="button" id="installBtn" class="icon-btn" title="Install App" aria-label="Install App">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="tab-panels">
+      <!-- TAB 1: MEDIA -->
+      <section id="tab-media" class="tab-panel active" aria-label="Media Controls">
+        <div class="row-3">
+          <button type="button" class="btn-seek" data-cmd="seek_backward" aria-label="Rewind 10 seconds">
+            <svg viewBox="0 0 24 24">
+              <path d="M11 17l-5-5 5-5" />
+              <path d="M18 17l-5-5 5-5" />
+            </svg>
+            <span class="btn-label">-10s</span>
+          </button>
+
+          <button type="button" class="btn-fs" data-cmd="fullscreen" aria-label="Toggle Fullscreen">
+            <svg viewBox="0 0 24 24">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+              <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+              <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+              <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
+            <span class="btn-label">Fullscreen (F)</span>
+          </button>
+
+          <button type="button" class="btn-seek" data-cmd="seek_forward" aria-label="Fast-Forward 10 seconds">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 17l5-5-5-5" />
+              <path d="M6 17l5-5-5-5" />
+            </svg>
+            <span class="btn-label">+10s</span>
+          </button>
+        </div>
+
+        <div class="playback-row">
+          <button type="button" class="btn-track" data-cmd="prev" aria-label="Previous Track">
+            <svg viewBox="0 0 24 24">
+              <polygon points="19 20 9 12 19 4 19 20" fill="currentColor" stroke="none" />
+              <line x1="5" y1="19" x2="5" y2="5" />
+            </svg>
+            <span class="btn-label">Prev</span>
+          </button>
+
+          <button type="button" class="btn-play" data-cmd="play_pause" aria-label="Play or Pause">
+            <svg viewBox="0 0 24 24">
+              <polygon points="5 4 14 12 5 20 5 4" fill="currentColor" stroke="none" />
+              <line x1="17" y1="5" x2="17" y2="19" stroke-width="2.6" />
+              <line x1="20.5" y1="5" x2="20.5" y2="19" stroke-width="2.6" />
+            </svg>
+            <span class="btn-label" style="color: #bfdbfe;">Play / Pause</span>
+          </button>
+
+          <button type="button" class="btn-track" data-cmd="next" aria-label="Next Track">
+            <svg viewBox="0 0 24 24">
+              <polygon points="5 4 15 12 5 20 5 4" fill="currentColor" stroke="none" />
+              <line x1="19" y1="5" x2="19" y2="19" />
+            </svg>
+            <span class="btn-label">Next</span>
+          </button>
+        </div>
+
+        <div class="row-3">
+          <button type="button" class="btn-vol" data-cmd="vol_down" aria-label="Volume Down">
+            <svg viewBox="0 0 24 24">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            </svg>
+            <span class="btn-label">Vol -</span>
+          </button>
+
+          <button type="button" class="btn-vol" data-cmd="mute" aria-label="Mute Toggle">
+            <svg viewBox="0 0 24 24">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <line x1="23" y1="9" x2="17" y2="15" />
+              <line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+            <span class="btn-label">Mute</span>
+          </button>
+
+          <button type="button" class="btn-vol" data-cmd="vol_up" aria-label="Volume Up">
+            <svg viewBox="0 0 24 24">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+            <span class="btn-label">Vol +</span>
+          </button>
+        </div>
+
+        <div class="row-2">
+          <button type="button" class="btn-compact" data-cmd="brightness_down" aria-label="Brightness Down">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="4" />
+              <line x1="12" y1="2" x2="12" y2="4" />
+              <line x1="12" y1="20" x2="12" y2="22" />
+              <line x1="4.93" y1="4.93" x2="6.34" y2="6.34" />
+              <line x1="17.66" y1="17.66" x2="19.07" y2="19.07" />
+            </svg>
+            Brightness -
+          </button>
+          <button type="button" class="btn-compact" data-cmd="brightness_up" aria-label="Brightness Up">
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+            </svg>
+            Brightness +
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 2: TOUCHPAD & CAST -->
+      <section id="tab-touchpad" class="tab-panel" aria-label="Touchpad and Cast">
+        <div id="trackpad" class="trackpad" aria-label="Laptop Touchpad">
+          <div class="trackpad-hint">
+            1-finger drag to move • Tap to click<br />
+            2-finger drag to scroll
+          </div>
+        </div>
+
+        <div class="row-2">
+          <button type="button" class="btn-compact" data-cmd="left_click">Left Click</button>
+          <button type="button" class="btn-compact" data-cmd="right_click">Right Click</button>
+        </div>
+
+        <div class="row-2">
+          <button type="button" class="btn-compact" data-cmd="alt_tab">Alt + Tab</button>
+          <button type="button" class="btn-compact" data-cmd="close_tab">Close Tab</button>
+        </div>
+
+        <form id="urlForm" class="url-form" autocomplete="off">
+          <input
+            id="urlInput"
+            class="url-input"
+            type="url"
+            inputmode="url"
+            placeholder="Paste URL to open on laptop..."
+            aria-label="URL to open on laptop"
+          />
+          <button type="submit" id="openUrlBtn" class="btn-open-url">
+            <svg viewBox="0 0 24 24">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            Open
+          </button>
+        </form>
+        <div id="urlFeedback" class="url-feedback" aria-live="polite"></div>
+
+        <div class="row-3">
+          <button type="button" class="btn-launch" data-launch="youtube">YouTube</button>
+          <button type="button" class="btn-launch" data-launch="netflix">Netflix</button>
+          <button type="button" class="btn-launch" data-launch="sonora">Sonora</button>
+        </div>
+      </section>
+
+      <!-- TAB 3: POWER & DISPLAY -->
+      <section id="tab-power" class="tab-panel" aria-label="Power and Display">
+        <div class="section-card">
+          <div class="section-title"><span>Display &amp; Security</span></div>
+          <div class="row-2">
+            <button type="button" class="btn-power-tile" data-cmd="screen_off">
+              <svg viewBox="0 0 24 24">
+                <rect x="2" y="3" width="20" height="14" rx="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span class="btn-label">Screen Off</span>
+            </button>
+            <button type="button" class="btn-power-tile" data-cmd="lock_pc">
+              <svg viewBox="0 0 24 24">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span class="btn-label">Lock PC</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-title">
+            <span>Shutdown Timer</span>
+            <span id="timerCountdown" class="timer-countdown">Off</span>
+          </div>
+          <div class="timer-grid">
+            <button type="button" class="btn-timer" data-minutes="15">15m</button>
+            <button type="button" class="btn-timer" data-minutes="30">30m</button>
+            <button type="button" class="btn-timer" data-minutes="45">45m</button>
+            <button type="button" class="btn-timer" data-minutes="60">60m</button>
+            <button type="button" class="btn-timer" data-minutes="0">Cancel</button>
+          </div>
+        </div>
+
+        <button type="button" id="shutdownPcBtn" class="btn-compact" style="width: 100%; color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);">Shutdown PC</button>
+
+        <button type="button" id="shutdownBtn" class="btn-shutdown">
+          <svg viewBox="0 0 24 24">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+            <line x1="12" y1="2" x2="12" y2="12" />
+          </svg>
+          Shutdown Server
+        </button>
+      </section>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Remote Tabs">
+      <button type="button" class="nav-btn active" data-tab="tab-media">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+        Media
+      </button>
+      <button type="button" class="nav-btn" data-tab="tab-touchpad">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" /><line x1="3" y1="15" x2="21" y2="15" /></svg>
+        Touchpad
+      </button>
+      <button type="button" class="nav-btn" data-tab="tab-power">
+        <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
+        Power
+      </button>
+    </nav>
+  </main>
+
+  <!-- 4-Digit PIN Reconnect Modal -->
+  <div id="pinModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+    <form id="pinForm" class="modal" autocomplete="off">
+      <h2 id="pinTitle">Enter 4-Digit PIN</h2>
+      <p>Type the 4-digit PIN shown in your laptop terminal to reconnect.</p>
+      <input
+        id="pinInput"
+        class="pin-input"
+        type="tel"
+        inputmode="numeric"
+        pattern="[0-9]{4}"
+        maxlength="4"
+        placeholder="••••"
+        required
+      />
+      <div id="pinError" class="pin-error"></div>
+      <button type="submit" class="btn-primary">Connect</button>
+    </form>
+  </div>
+
+  <!-- iOS Install Tooltip Modal -->
+  <div id="iosInstallModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="iosTitle">
+    <div class="modal">
+      <h2 id="iosTitle">Add to Home Screen</h2>
+      <p>
+        1. Tap the <strong>Share</strong> icon in Safari's toolbar.<br />
+        2. Scroll down and tap <strong>Add to Home Screen</strong>.
+      </p>
+      <button type="button" id="closeIosModal" class="btn-primary">Got it</button>
+    </div>
+  </div>
+
+  <!-- Shutdown Confirmation Modal -->
+  <div id="confirmModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h2 id="modalTitle">Shutdown Remote Server?</h2>
+      <p>This will stop the Node.js server on your laptop. You will need to restart it on your laptop to reconnect.</p>
+      <div class="modal-actions">
+        <button type="button" id="cancelShutdown">Cancel</button>
+        <button type="button" id="confirmShutdown" class="btn-danger">Shutdown</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    (function () {
+      document.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+      });
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      }
+
+      const PIN_KEY = 'pc_remote_pin';
+      const params = new URLSearchParams(window.location.search);
+      const urlPin = params.get('pin');
+      if (urlPin) {
+        localStorage.setItem(PIN_KEY, urlPin);
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState({}, document.title, '/');
+        }
+      }
+
+      let currentPin = urlPin || localStorage.getItem(PIN_KEY) || '';
+
+      const statusPill = document.getElementById('statusPill');
+      const statusText = document.getElementById('statusText');
+      const batteryBadge = document.getElementById('batteryBadge');
+      const batteryText = document.getElementById('batteryText');
+      const installBtn = document.getElementById('installBtn');
+      const iosInstallModal = document.getElementById('iosInstallModal');
+      const closeIosModal = document.getElementById('closeIosModal');
+
+      const pinModal = document.getElementById('pinModal');
+      const pinForm = document.getElementById('pinForm');
+      const pinInput = document.getElementById('pinInput');
+      const pinError = document.getElementById('pinError');
+
+      const controlButtons = document.querySelectorAll('button[data-cmd]');
+      const launchButtons = document.querySelectorAll('button[data-launch]');
+      const timerButtons = document.querySelectorAll('button[data-minutes]');
+      const shutdownPcBtn = document.getElementById('shutdownPcBtn');
+      const shutdownBtn = document.getElementById('shutdownBtn');
+      const urlForm = document.getElementById('urlForm');
+      const urlInput = document.getElementById('urlInput');
+      const openUrlBtn = document.getElementById('openUrlBtn');
+      const urlFeedback = document.getElementById('urlFeedback');
+
+      const timerCountdown = document.getElementById('timerCountdown');
+
+      const confirmModal = document.getElementById('confirmModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalDesc = confirmModal.querySelector('p');
+      const cancelShutdown = document.getElementById('cancelShutdown');
+      const confirmShutdown = document.getElementById('confirmShutdown');
+
+      let pendingConfirmAction = 'shutdown_server';
+
+      function haptic() {
+        if (navigator.vibrate) {
+          navigator.vibrate(30);
+        }
+      }
+
+      function setConnected(isConnected, label) {
+        statusPill.classList.toggle('connected', isConnected);
+        statusPill.classList.toggle('disconnected', !isConnected);
+        statusText.textContent = label || (isConnected ? 'Connected & Secured' : 'Unauthorized / Disconnected');
+        controlButtons.forEach((btn) => { btn.disabled = !isConnected; });
+        launchButtons.forEach((btn) => { btn.disabled = !isConnected; });
+        timerButtons.forEach((btn) => { btn.disabled = !isConnected; });
+        shutdownPcBtn.disabled = !isConnected;
+        shutdownBtn.disabled = !isConnected;
+        openUrlBtn.disabled = !isConnected;
+        urlInput.disabled = !isConnected;
+      }
+
+      function showPinModal(errMsg) {
+        pinError.textContent = errMsg || '';
+        pinModal.classList.add('open');
+        setTimeout(() => pinInput.focus(), 80);
+      }
+
+      function hidePinModal() {
+        pinModal.classList.remove('open');
+        pinError.textContent = '';
+      }
+
+      // PWA Install Prompt
+      let deferredInstallPrompt = null;
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+      if (isStandalone) {
+        installBtn.classList.add('hidden');
+      }
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        installBtn.classList.remove('hidden');
+      });
+
+      installBtn.addEventListener('click', async () => {
+        haptic();
+        if (deferredInstallPrompt) {
+          deferredInstallPrompt.prompt();
+          await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+        } else if (isIos) {
+          iosInstallModal.classList.add('open');
+        } else {
+          iosInstallModal.classList.add('open');
+        }
+      });
+
+      closeIosModal.addEventListener('click', () => {
+        iosInstallModal.classList.remove('open');
+      });
+
+      // Bottom Tab Navigation
+      const navBtns = document.querySelectorAll('.nav-btn');
+      const tabPanels = document.querySelectorAll('.tab-panel');
+      navBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          haptic();
+          const targetId = btn.getAttribute('data-tab');
+          navBtns.forEach((b) => b.classList.toggle('active', b === btn));
+          tabPanels.forEach((p) => p.classList.toggle('active', p.id === targetId));
+        });
+      });
+
+      // Socket.io Connection
+      setConnected(false, 'Connecting...');
+      const socket = io({
+        auth: { pin: currentPin },
+        autoConnect: Boolean(currentPin),
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
+      });
+
+      if (!currentPin) {
+        setConnected(false, 'PIN Required');
+        showPinModal('');
+      }
+
+      socket.on('connect', () => {
+        hidePinModal();
+        setConnected(true, 'Connected & Secured');
+      });
+
+      socket.on('disconnect', () => {
+        setConnected(false, 'Disconnected');
+      });
+
+      socket.on('connect_error', (err) => {
+        setConnected(false, 'Unauthorized / Disconnected');
+        if (err && err.message === 'Unauthorized') {
+          showPinModal('Invalid or expired PIN. Check your laptop terminal.');
+        }
+      });
+
+      socket.on('server_shutting_down', () => {
+        setConnected(false, 'Server Shut Down');
+      });
+
+      socket.on('battery_status', (data) => {
+        if (!data || !data.hasBattery || data.percent === null) {
+          batteryText.textContent = 'AC';
+          batteryBadge.className = 'battery-badge';
+          return;
+        }
+        batteryText.textContent = (data.charging ? '⚡ ' : '🔋 ') + data.percent + '%';
+        batteryBadge.className =
+          'battery-badge' +
+          (data.charging ? ' charging' : data.percent <= 20 ? ' low' : '');
+      });
+
+      socket.on('sleep_timer_update', (state) => {
+        if (!state || !state.active) {
+          timerCountdown.textContent = 'Off';
+          return;
+        }
+        const m = Math.floor(state.remainingSeconds / 60);
+        const s = state.remainingSeconds % 60;
+        const prefix = state.action === 'shutdown' ? 'Shutdown ' : 'Sleep ';
+        timerCountdown.textContent = prefix + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      });
+
+      pinForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const entered = pinInput.value.trim();
+        if (!/^\d{4}$/.test(entered)) {
+          pinError.textContent = 'Please enter a 4-digit numeric PIN.';
+          return;
+        }
+        haptic();
+        currentPin = entered;
+        localStorage.setItem(PIN_KEY, entered);
+        socket.auth = { pin: entered };
+        socket.disconnect().connect();
+      });
+
+      // Standard Command Buttons
+      controlButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.getAttribute('data-cmd');
+          if (!cmd || !socket.connected) return;
+          haptic();
+          socket.emit('media_command', { command: cmd });
+        });
+      });
+
+      // Touchpad Gestures (1-finger move, tap-to-click, 2-finger scroll)
+      const trackpad = document.getElementById('trackpad');
+      let tpLastX = 0;
+      let tpLastY = 0;
+      let tpStartX = 0;
+      let tpStartY = 0;
+      let tpStartTime = 0;
+      let tpMoved = false;
+      let tpFingers = 0;
+      let pendingDx = 0;
+      let pendingDy = 0;
+      let pendingScroll = 0;
+      let flushScheduled = false;
+
+      function flushTrackpad() {
+        flushScheduled = false;
+        if (!socket.connected) return;
+        if (pendingDx !== 0 || pendingDy !== 0) {
+          socket.emit('media_command', {
+            command: 'mouse_move',
+            dx: Math.round(pendingDx),
+            dy: Math.round(pendingDy),
+          });
+          pendingDx = 0;
+          pendingDy = 0;
+        }
+        if (pendingScroll !== 0) {
+          socket.emit('media_command', {
+            command: 'scroll',
+            dy: Math.round(pendingScroll),
+          });
+          pendingScroll = 0;
+        }
+      }
+
+      function scheduleFlush() {
+        if (!flushScheduled) {
+          flushScheduled = true;
+          requestAnimationFrame(flushTrackpad);
+        }
+      }
+
+      trackpad.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        trackpad.classList.add('touching');
+        tpFingers = e.touches.length;
+        const t = e.touches[0];
+        tpLastX = t.clientX;
+        tpLastY = t.clientY;
+        tpStartX = t.clientX;
+        tpStartY = t.clientY;
+        tpStartTime = Date.now();
+        tpMoved = false;
+      }, { passive: false });
+
+      trackpad.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (!socket.connected) return;
+        const t = e.touches[0];
+        const dx = t.clientX - tpLastX;
+        const dy = t.clientY - tpLastY;
+        tpLastX = t.clientX;
+        tpLastY = t.clientY;
+
+        if (Math.hypot(t.clientX - tpStartX, t.clientY - tpStartY) > 7) {
+          tpMoved = true;
+        }
+
+        if (e.touches.length === 2 || tpFingers === 2) {
+          pendingScroll += -dy * 0.25;
+        } else {
+          pendingDx += dx * 1.65;
+          pendingDy += dy * 1.65;
+        }
+        scheduleFlush();
+      }, { passive: false });
+
+      trackpad.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        trackpad.classList.remove('touching');
+        if (
+          e.touches.length === 0 &&
+          tpFingers === 1 &&
+          !tpMoved &&
+          Date.now() - tpStartTime < 220 &&
+          socket.connected
+        ) {
+          haptic();
+          socket.emit('media_command', { command: 'left_click' });
+        }
+        tpFingers = e.touches.length;
+      }, { passive: false });
+
+      // URL Cast & Quick Launch
+      let feedbackTimer = null;
+      function showUrlFeedback(text, isError) {
+        urlFeedback.textContent = text;
+        urlFeedback.className = 'url-feedback ' + (isError ? 'err' : 'ok');
+        clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => {
+          urlFeedback.textContent = '';
+          urlFeedback.className = 'url-feedback';
+        }, 3000);
+      }
+
+      urlForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!socket.connected) return;
+        const raw = urlInput.value.trim();
+        if (!raw) return;
+        haptic();
+        socket.emit('cast_url', { url: raw }, (ack) => {
+          if (ack && ack.ok) {
+            urlInput.value = '';
+            urlInput.blur();
+            showUrlFeedback('Opened on laptop!', false);
+          } else {
+            showUrlFeedback((ack && ack.error) || 'Invalid http/https URL', true);
+          }
+        });
+      });
+
+      launchButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (!socket.connected) return;
+          const app = btn.getAttribute('data-launch');
+          haptic();
+          socket.emit('quick_launch', { app }, (ack) => {
+            if (ack && ack.ok) {
+              showUrlFeedback('Launched ' + app + '!', false);
+            }
+          });
+        });
+      });
+
+      // Shutdown Timer
+      timerButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (!socket.connected) return;
+          const minutes = Number(btn.getAttribute('data-minutes'));
+          haptic();
+          socket.emit('sleep_timer', { minutes, action: 'shutdown' });
+        });
+      });
+
+      // Immediate Shutdown PC & Shutdown Server Modal
+      shutdownPcBtn.addEventListener('click', () => {
+        if (!socket.connected) return;
+        haptic();
+        pendingConfirmAction = 'shutdown_pc';
+        modalTitle.textContent = 'Shutdown Laptop Now?';
+        modalDesc.textContent = 'This will immediately power off your laptop.';
+        confirmShutdown.textContent = 'Shutdown PC';
+        confirmModal.classList.add('open');
+      });
+
+      shutdownBtn.addEventListener('click', () => {
+        haptic();
+        pendingConfirmAction = 'shutdown_server';
+        modalTitle.textContent = 'Shutdown Remote Server?';
+        modalDesc.textContent = 'This will stop the Node.js server on your laptop. You will need to restart it on your laptop to reconnect.';
+        confirmShutdown.textContent = 'Shutdown';
+        confirmModal.classList.add('open');
+      });
+
+      cancelShutdown.addEventListener('click', () => {
+        confirmModal.classList.remove('open');
+      });
+
+      confirmShutdown.addEventListener('click', () => {
+        haptic();
+        confirmModal.classList.remove('open');
+        if (pendingConfirmAction === 'shutdown_pc') {
+          socket.emit('power_action', { action: 'shutdown' });
+        } else {
+          socket.emit('shutdown_server');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

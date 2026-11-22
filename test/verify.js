@@ -1,5 +1,8 @@
 const assert = require('assert');
+const fs = require('fs');
 const http = require('http');
+const os = require('os');
+const path = require('path');
 const { io: ioClient } = require('socket.io-client');
 const { createRemoteServer } = require('../server');
 const { ALLOWED_COMMANDS } = require('../src/mediaController');
@@ -49,7 +52,8 @@ function emitWithAck(client, event, payload) {
 }
 
 async function runTests() {
-  const remote = createRemoteServer({ port: 0, dryRun: true, batteryIntervalMs: 0 });
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pc-remote-test-'));
+  const remote = createRemoteServer({ port: 0, dryRun: true, batteryIntervalMs: 0, uploadDir: tempDir });
   const { port, pin } = await remote.start();
   const baseUrl = `http://127.0.0.1:${port}`;
 
@@ -171,10 +175,36 @@ async function runTests() {
     delete process.env.REMOTE_PIN;
     console.log('✓ Fixed REMOTE_PIN environment variable verified');
 
+    // 12. Two-way Wi-Fi File Sharing (Upload + Download + PIN Guard)
+    const unauthUpload = await fetch(`${baseUrl}/api/files/upload`, { method: 'POST' });
+    assert.strictEqual(unauthUpload.status, 401, 'Upload without PIN must return 401');
+
+    const form = new FormData();
+    form.append('files', new Blob(['hello from phone']), '../../hello.txt');
+    const authUpload = await fetch(`${baseUrl}/api/files/upload?pin=${pin}`, {
+      method: 'POST',
+      body: form,
+    });
+    assert.strictEqual(authUpload.status, 200, 'Upload with valid PIN must return 200');
+    const uploadJson = await authUpload.json();
+    assert.strictEqual(uploadJson.ok, true);
+    assert.strictEqual(uploadJson.files[0].name, 'hello.txt');
+    assert.strictEqual(fs.readFileSync(path.join(tempDir, 'hello.txt'), 'utf8'), 'hello from phone');
+
+    const shared = remote.shareFile(path.join(tempDir, 'hello.txt'));
+    const unauthDl = await fetch(`${baseUrl}/api/files/download/${shared.id}`);
+    assert.strictEqual(unauthDl.status, 401, 'Download without PIN must return 401');
+
+    const authDl = await fetch(`${baseUrl}/api/files/download/${shared.id}?pin=${pin}`);
+    assert.strictEqual(authDl.status, 200, 'Download with valid PIN must return 200');
+    assert.strictEqual(await authDl.text(), 'hello from phone');
+    console.log('✓ Two-way Wi-Fi file upload, download, and PIN protection verified');
+
     validSocket.client.close();
     console.log('\nAll verification checks passed!');
   } finally {
     await remote.shutdown();
+    fs.rmSync(tempDir, { recursive: true, force: true });
   }
 }
 

@@ -24,15 +24,25 @@
 
     body {
       margin: 0;
-      padding: 18px;
+      padding: 14px 16px;
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       height: 100vh;
       overflow: hidden;
+    }
+
+    .content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding-right: 2px;
     }
 
     /* Header */
@@ -40,6 +50,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
 
     .title-group h1 {
@@ -80,8 +91,9 @@
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
+      border-radius: 14px;
+      padding: 11px 13px;
+      flex-shrink: 0;
     }
 
     /* QR Section */
@@ -89,24 +101,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       text-align: center;
     }
 
     .qr-box {
       background: #ffffff;
-      padding: 10px;
-      border-radius: 14px;
+      padding: 7px;
+      border-radius: 12px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 176px;
-      height: 176px;
+      width: 132px;
+      height: 132px;
     }
 
     .qr-box img {
-      width: 156px;
-      height: 156px;
+      width: 118px;
+      height: 118px;
       display: block;
     }
 
@@ -291,8 +303,8 @@
 
     /* Activity Log */
     .log-card {
-      flex: 1;
-      min-height: 0;
+      min-height: 76px;
+      max-height: 110px;
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -314,11 +326,56 @@
       margin-right: 6px;
     }
 
+    .file-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .shared-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+      max-height: 54px;
+      overflow-y: auto;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-size: 0.71rem;
+      color: #d4d4d8;
+      max-width: 190px;
+    }
+
+    .chip span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chip button {
+      border: none;
+      background: transparent;
+      padding: 0 2px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+
     /* Footer */
     .footer {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -334,6 +391,7 @@
     </div>
   </header>
 
+  <div class="content">
   <section class="card qr-card">
     <div class="qr-box">
       <img id="qrImg" alt="Scan QR Code" />
@@ -367,10 +425,20 @@
     </label>
   </section>
 
+  <section class="card">
+    <div class="section-label">File Sharing (Drag &amp; Drop or Pick)</div>
+    <div class="file-actions">
+      <button type="button" id="shareFilesBtn" class="btn-accent">Send to Phone</button>
+      <button type="button" id="openDownloadsBtn">Open Folder</button>
+    </div>
+    <div id="sharedChips" class="shared-chips"></div>
+  </section>
+
   <section class="card log-card">
     <div class="section-label">Activity</div>
     <div id="logList" class="log-list"></div>
   </section>
+  </div>
 
   <footer class="footer">
     <button type="button" id="restartBtn">Restart</button>
@@ -390,6 +458,9 @@
       const fixedPinInput = document.getElementById('fixedPinInput');
       const applyPinBtn = document.getElementById('applyPinBtn');
       const autoStartToggle = document.getElementById('autoStartToggle');
+      const shareFilesBtn = document.getElementById('shareFilesBtn');
+      const openDownloadsBtn = document.getElementById('openDownloadsBtn');
+      const sharedChips = document.getElementById('sharedChips');
       const logList = document.getElementById('logList');
       const restartBtn = document.getElementById('restartBtn');
       const trayBtn = document.getElementById('trayBtn');
@@ -419,6 +490,25 @@
         logList.innerHTML = (state.logs || [])
           .map((item) => `<div class="log-item"><span>${item.time}</span>${item.message}</div>`)
           .join('');
+
+        sharedChips.innerHTML = '';
+        (state.sharedFiles || []).forEach((f) => {
+          const chip = document.createElement('div');
+          chip.className = 'chip';
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = f.name;
+          const rmBtn = document.createElement('button');
+          rmBtn.type = 'button';
+          rmBtn.textContent = '×';
+          rmBtn.title = 'Stop sharing';
+          rmBtn.addEventListener('click', async () => {
+            const next = await window.pcRemote.unshareFile(f.id);
+            render(next);
+          });
+          chip.appendChild(nameSpan);
+          chip.appendChild(rmBtn);
+          sharedChips.appendChild(chip);
+        });
       }
 
       window.pcRemote.getState().then(render);
@@ -462,6 +552,30 @@
       restartBtn.addEventListener('click', async () => {
         const next = await window.pcRemote.restartServer();
         render(next);
+      });
+
+      shareFilesBtn.addEventListener('click', async () => {
+        const next = await window.pcRemote.pickFilesToShare();
+        render(next);
+      });
+
+      openDownloadsBtn.addEventListener('click', () => {
+        window.pcRemote.openDownloadsFolder();
+      });
+
+      document.body.addEventListener('dragover', (e) => {
+        e.preventDefault();
+      });
+
+      document.body.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const paths = Array.from(e.dataTransfer?.files || [])
+          .map((f) => f.path)
+          .filter(Boolean);
+        if (paths.length > 0) {
+          const next = await window.pcRemote.sharePaths(paths);
+          render(next);
+        }
       });
 
       trayBtn.addEventListener('click', () => window.pcRemote.hideToTray());

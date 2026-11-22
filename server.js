@@ -1,7 +1,10 @@
 const crypto = require('crypto');
+const fs = require('fs');
 const http = require('http');
+const os = require('os');
 const path = require('path');
 const express = require('express');
+const multer = require('multer');
 const { Server } = require('socket.io');
 const qrcode = require('qrcode-terminal');
 
@@ -38,15 +41,56 @@ function generatePin() {
 }
 
 /**
+ * Sanitize an uploaded filename to prevent path traversal or invalid OS characters.
+ * @param {string} rawName
+ * @returns {string}
+ */
+function sanitizeFilename(rawName) {
+  const base = path.basename(String(rawName || 'file')).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim();
+  return base || `file_${Date.now()}`;
+}
+
+/**
  * Create and configure the Express + Socket.io media remote server.
- * @param {{ pin?: string, port?: number, dryRun?: boolean, batteryIntervalMs?: number, onShutdown?: () => void }} [options]
+ * @param {{ pin?: string, port?: number, dryRun?: boolean, batteryIntervalMs?: number, uploadDir?: string, onFileReceived?: (files: Array<{name: string, size: number}>) => void, onShutdown?: () => void }} [options]
  */
 function createRemoteServer(options = {}) {
   const envPin = /^\d{4}$/.test(process.env.REMOTE_PIN || '') ? process.env.REMOTE_PIN : null;
   const pin = options.pin || envPin || generatePin();
   const startPort = options.port ?? (Number(process.env.PORT) || 3000);
   const batteryIntervalMs = options.batteryIntervalMs ?? 15000;
+  const defaultUploadDir =
+    process.platform === 'win32' && fs.existsSync('D:\\')
+      ? 'D:\\PC-remote-files'
+      : path.join(os.homedir(), 'Downloads', 'PC-remote-files');
+  const uploadDir = options.uploadDir || defaultUploadDir;
   const mediaController = new MediaController({ dryRun: options.dryRun });
+
+  fs.mkdirSync(uploadDir, { recursive: true });
+
+  const storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadDir),
+    filename: (_req, file, cb) => {
+      const clean = sanitizeFilename(file.originalname);
+      const ext = path.extname(clean);
+      const stem = path.basename(clean, ext);
+      let candidate = clean;
+      let counter = 1;
+      while (fs.existsSync(path.join(uploadDir, candidate))) {
+        candidate = `${stem} (${counter})${ext}`;
+        counter += 1;
+      }
+      cb(null, candidate);
+    },
+  });
+
+  const upload = multer({
+    storage,
+    limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2 GB max per file
+  });
+
+  /** @type {Map<string, { id: string, name: string, size: number, path: string }>} */
+  const sharedFiles = new Map();
 
   const app = express();
   app.disable('x-powered-by');
@@ -73,6 +117,29 @@ function createRemoteServer(options = {}) {
 
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  });
+
+  app.post('/api/files/upload', upload.array('files', 20), (req, res) => {
+    const uploaded = (req.files || []).map((f) => ({
+      name: f.filename,
+      size: f.size,
+    }));
+    if (uploaded.length === 0) {
+      return res.status(400).json({ ok: false, error: 'No files uploaded' });
+    }
+    console.log(`[INFO] Received ${uploaded.length} file(s) from phone into ${uploadDir}`);
+    if (typeof options.onFileReceived === 'function') {
+      options.onFileReceived(uploaded);
+    }
+    return res.json({ ok: true, files: uploaded, uploadDir });
+  });
+
+  app.get('/api/files/download/:id', (req, res) => {
+    const entry = sharedFiles.get(req.params.id);
+    if (!entry || !fs.existsSync(entry.path)) {
+      return res.status(404).type('text/plain').send('File not found');
+    }
+    return res.download(entry.path, entry.name);
   });
 
   app.use(express.static(path.join(__dirname, 'public')));
@@ -183,12 +250,43 @@ function createRemoteServer(options = {}) {
     }
   };
 
+  function getSharedFiles() {
+    return Array.from(sharedFiles.values()).map(({ id, name, size }) => ({ id, name, size }));
+  }
+
+  function shareFile(filePath) {
+    const resolved = path.resolve(filePath);
+    const stat = fs.statSync(resolved);
+    if (!stat.isFile()) {
+      throw new Error('Only regular files can be shared');
+    }
+    const id = crypto.randomBytes(4).toString('hex');
+    const entry = {
+      id,
+      name: path.basename(resolved),
+      size: stat.size,
+      path: resolved,
+    };
+    sharedFiles.set(id, entry);
+    io.emit('shared_files_update', getSharedFiles());
+    return { id: entry.id, name: entry.name, size: entry.size };
+  }
+
+  function unshareFile(id) {
+    if (sharedFiles.delete(id)) {
+      io.emit('shared_files_update', getSharedFiles());
+      return true;
+    }
+    return false;
+  }
+
   io.on('connection', (socket) => {
     console.log(`[INFO] Phone connected (${socket.id})`);
 
     // Send initial telemetry immediately
     socket.emit('battery_status', latestBattery);
     socket.emit('sleep_timer_update', getSleepTimerState());
+    socket.emit('shared_files_update', getSharedFiles());
     pollBattery();
 
     socket.on('media_command', async (payload, ack) => {
@@ -322,7 +420,11 @@ function createRemoteServer(options = {}) {
     httpServer,
     io,
     pin,
+    uploadDir,
     mediaController,
+    shareFile,
+    unshareFile,
+    getSharedFiles,
     start,
     shutdown,
   };

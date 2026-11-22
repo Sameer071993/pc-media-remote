@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('pcRemote', {
   setAutoStart: (enabled) => ipcRenderer.invoke('set-auto-start', enabled),
   restartServer: () => ipcRenderer.invoke('restart-server'),
   copyUrl: () => ipcRenderer.invoke('copy-url'),
+  pickFilesToShare: () => ipcRenderer.invoke('pick-files-to-share'),
+  sharePaths: (paths) => ipcRenderer.invoke('share-paths', paths),
+  unshareFile: (id) => ipcRenderer.invoke('unshare-file', id),
+  openDownloadsFolder: () => ipcRenderer.invoke('open-downloads-folder'),
   hideToTray: () => ipcRenderer.send('hide-to-tray'),
   quitApp: () => ipcRenderer.send('quit-app'),
   onStateUpdate: (callback) => {

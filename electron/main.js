@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { app, BrowserWindow, Tray, Menu, ipcMain, clipboard, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, ipcMain, clipboard, nativeImage, dialog, shell } = require('electron');
 const QRCode = require('qrcode');
 const { createRemoteServer } = require('../server');
 
@@ -66,6 +66,8 @@ function getFullState() {
     pinMode: cfg.pinMode,
     fixedPin: cfg.fixedPin,
     autoStart: Boolean(login.openAtLogin),
+    sharedFiles: remoteServer ? remoteServer.getSharedFiles() : [],
+    uploadDir: remoteServer ? remoteServer.uploadDir : '',
   };
 }
 
@@ -86,6 +88,10 @@ async function startServer() {
 
   remoteServer = createRemoteServer({
     pin: pinOption,
+    onFileReceived: (files) => {
+      const names = files.map((f) => f.name).join(', ');
+      addLog(`Received from phone: ${names}`);
+    },
     onShutdown: () => {
       if (!isQuitting) {
         isQuitting = true;
@@ -131,9 +137,11 @@ async function startServer() {
 function createWindow() {
   const iconPath = path.join(__dirname, '..', 'public', 'icon-192.png');
   mainWindow = new BrowserWindow({
-    width: 450,
-    height: 740,
-    resizable: false,
+    width: 460,
+    height: 780,
+    minWidth: 420,
+    minHeight: 640,
+    resizable: true,
     maximizable: false,
     title: 'PC Media Remote',
     backgroundColor: '#09090b',
@@ -248,6 +256,47 @@ ipcMain.handle('copy-url', () => {
     return true;
   }
   return false;
+});
+
+function shareFilePaths(paths) {
+  if (!remoteServer || !Array.isArray(paths)) return;
+  for (const p of paths) {
+    try {
+      const entry = remoteServer.shareFile(p);
+      addLog(`Shared to phone: ${entry.name}`);
+    } catch {
+      // Skip folders or unreadable files
+    }
+  }
+}
+
+ipcMain.handle('pick-files-to-share', async () => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select files to share with phone',
+    properties: ['openFile', 'multiSelections'],
+  });
+  if (!res.canceled && res.filePaths.length > 0) {
+    shareFilePaths(res.filePaths);
+  }
+  return getFullState();
+});
+
+ipcMain.handle('share-paths', (_event, paths) => {
+  shareFilePaths(paths);
+  return getFullState();
+});
+
+ipcMain.handle('unshare-file', (_event, id) => {
+  if (remoteServer) {
+    remoteServer.unshareFile(id);
+  }
+  return getFullState();
+});
+
+ipcMain.handle('open-downloads-folder', async () => {
+  if (remoteServer && remoteServer.uploadDir) {
+    await shell.openPath(remoteServer.uploadDir);
+  }
 });
 
 ipcMain.on('hide-to-tray', () => {

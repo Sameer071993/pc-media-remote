@@ -6,6 +6,7 @@ const path = require('path');
 const express = require('express');
 const multer = require('multer');
 const { Server } = require('socket.io');
+const { Bonjour } = require('bonjour-service');
 const qrcode = require('qrcode-terminal');
 
 const { getLocalIPv4, listenOnAvailablePort } = require('./src/network');
@@ -231,6 +232,8 @@ function createRemoteServer(options = {}) {
     }
   }
 
+  let bonjourInstance = null;
+
   const shutdown = async () => {
     console.log('\n[INFO] Shutting down Laptop Media Remote...');
     if (batteryInterval) {
@@ -240,6 +243,17 @@ function createRemoteServer(options = {}) {
     if (sleepTimerInterval) {
       clearInterval(sleepTimerInterval);
       sleepTimerInterval = null;
+    }
+    if (bonjourInstance) {
+      const bonjourToClose = bonjourInstance;
+      bonjourInstance = null;
+      try {
+        bonjourToClose.unpublishAll(() => {
+          bonjourToClose.destroy();
+        });
+      } catch {
+        // Ignore mDNS cleanup errors
+      }
     }
     io.emit('server_shutting_down');
     mediaController.dispose();
@@ -406,13 +420,28 @@ function createRemoteServer(options = {}) {
     const boundPort = await listenOnAvailablePort(httpServer, startPort, '0.0.0.0');
     const localIp = getLocalIPv4();
     const url = `http://${localIp}:${boundPort}/?pin=${pin}`;
+    const mdnsUrl = `http://pcremote.local:${boundPort}/?pin=${pin}`;
+
+    if (!options.disableMdns) {
+      try {
+        bonjourInstance = new Bonjour();
+        bonjourInstance.publish({
+          name: 'PC Media Remote',
+          type: 'http',
+          port: boundPort,
+          host: 'pcremote.local',
+        });
+      } catch {
+        // Ignore mDNS errors if multicast is unavailable
+      }
+    }
 
     await pollBattery();
     if (batteryIntervalMs > 0) {
       batteryInterval = setInterval(pollBattery, batteryIntervalMs);
     }
 
-    return { port: boundPort, localIp, pin, url };
+    return { port: boundPort, localIp, pin, url, mdnsUrl };
   }
 
   return {
@@ -437,13 +466,14 @@ if (require.main === module) {
 
   remote
     .start()
-    .then(({ port, localIp, pin, url }) => {
+    .then(({ port, localIp, pin, url, mdnsUrl }) => {
       console.log('==================================================');
       console.log('  PC Media Remote Server Running');
       console.log('==================================================');
       console.log(`  Local IP : ${localIp}`);
       console.log(`  Port     : ${port}`);
       console.log(`  URL      : ${url}`);
+      console.log(`  Hostname : ${mdnsUrl}`);
       console.log('--------------------------------------------------');
       console.log(`  >>>  SESSION PIN :  [  ${pin.split('').join(' ')}  ]  <<<`);
       console.log('--------------------------------------------------');

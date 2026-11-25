@@ -44,6 +44,9 @@ function main() {
   fs.mkdirSync(path.join(STAGE, 'electron'), { recursive: true });
 
   copyDir(path.join(ROOT, 'public'), path.join(STAGE, 'public'));
+  if (fs.existsSync(path.join(ROOT, 'build'))) {
+    copyDir(path.join(ROOT, 'build'), path.join(STAGE, 'build'));
+  }
   fs.copyFileSync(path.join(ROOT, 'electron', 'index.html'), path.join(STAGE, 'electron', 'index.html'));
   fs.copyFileSync(path.join(ROOT, 'electron', 'preload.js'), path.join(STAGE, 'electron', 'preload.js'));
 

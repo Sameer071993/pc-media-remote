@@ -32,9 +32,11 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "include": "build/installer.nsh"
     }
   },
   "keywords": [
@@ -45,6 +47,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "bonjour-service": "^1.4.4",
     "bytenode": "^2.1.0",
     "express": "^4.21.2",
     "multer": "^2.5.0",

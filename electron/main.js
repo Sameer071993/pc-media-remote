@@ -114,6 +114,7 @@ async function startServer() {
     port: info.port,
     pin: info.pin,
     url: info.url,
+    mdnsUrl: info.mdnsUrl,
     qrDataUrl,
     connectedClients: 0,
   };
@@ -137,10 +138,10 @@ async function startServer() {
 function createWindow() {
   const iconPath = path.join(__dirname, '..', 'public', 'icon-192.png');
   mainWindow = new BrowserWindow({
-    width: 460,
-    height: 780,
-    minWidth: 420,
-    minHeight: 640,
+    width: 640,
+    height: 610,
+    minWidth: 600,
+    minHeight: 570,
     resizable: true,
     maximizable: false,
     title: 'PC Media Remote',

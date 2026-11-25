@@ -979,11 +979,11 @@
     </form>
   </div>
 
-  <!-- iOS Install Tooltip Modal -->
+  <!-- Install / Home Screen Modal -->
   <div id="iosInstallModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="iosTitle">
     <div class="modal">
       <h2 id="iosTitle">Add to Home Screen</h2>
-      <p>
+      <p id="installInstructions">
         1. Tap the <strong>Share</strong> icon in Safari's toolbar.<br />
         2. Scroll down and tap <strong>Add to Home Screen</strong>.
       </p>
@@ -1019,9 +1019,6 @@
       const urlPin = params.get('pin');
       if (urlPin) {
         localStorage.setItem(PIN_KEY, urlPin);
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState({}, document.title, '/');
-        }
       }
 
       let currentPin = urlPin || localStorage.getItem(PIN_KEY) || '';
@@ -1104,6 +1101,8 @@
         installBtn.classList.remove('hidden');
       });
 
+      const installInstructions = document.getElementById('installInstructions');
+
       installBtn.addEventListener('click', async () => {
         haptic();
         if (deferredInstallPrompt) {
@@ -1111,8 +1110,15 @@
           await deferredInstallPrompt.userChoice;
           deferredInstallPrompt = null;
         } else if (isIos) {
+          installInstructions.innerHTML =
+            '1. Tap the <strong>Share</strong> icon in Safari\'s toolbar.<br />' +
+            '2. Scroll down and tap <strong>Add to Home Screen</strong>.';
           iosInstallModal.classList.add('open');
         } else {
+          installInstructions.innerHTML =
+            '1. If opened inside a QR scanner app, tap <strong>⋮ → Open in Chrome</strong> first.<br />' +
+            '2. In Chrome, tap <strong>⋮ (top-right) → Add to Home screen</strong> (or <strong>★ Bookmark</strong>).<br />' +
+            '3. Tip: Use <strong>pcremote.local:' + (window.location.port || '3000') + '</strong> so it still works if your Wi-Fi IP changes.';
           iosInstallModal.classList.add('open');
         }
       });

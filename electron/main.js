@@ -78,61 +78,67 @@ function broadcastState() {
 }
 
 async function startServer() {
-  if (remoteServer) {
-    await remoteServer.shutdown();
-    remoteServer = null;
-  }
+  try {
+    if (remoteServer) {
+      await remoteServer.shutdown();
+      remoteServer = null;
+    }
 
-  const cfg = loadConfig();
-  const pinOption = cfg.pinMode === 'fixed' ? cfg.fixedPin : undefined;
+    const cfg = loadConfig();
+    const pinOption = cfg.pinMode === 'fixed' ? cfg.fixedPin : undefined;
 
-  remoteServer = createRemoteServer({
-    pin: pinOption,
-    onFileReceived: (files) => {
-      const names = files.map((f) => f.name).join(', ');
-      addLog(`Received from phone: ${names}`);
-    },
-    onShutdown: () => {
-      if (!isQuitting) {
-        isQuitting = true;
-        app.quit();
-      }
-    },
-  });
-
-  const info = await remoteServer.start();
-  const qrDataUrl = await QRCode.toDataURL(info.url, {
-    width: 220,
-    margin: 1,
-    color: { dark: '#000000', light: '#ffffff' },
-  });
-
-  currentInfo = {
-    ...currentInfo,
-    running: true,
-    localIp: info.localIp,
-    port: info.port,
-    pin: info.pin,
-    url: info.url,
-    mdnsUrl: info.mdnsUrl,
-    qrDataUrl,
-    connectedClients: 0,
-  };
-
-  remoteServer.io.on('connection', (socket) => {
-    currentInfo.connectedClients = remoteServer.io.engine.clientsCount;
-    addLog(`Phone connected (${socket.handshake.address})`);
-
-    socket.on('disconnect', () => {
-      if (remoteServer) {
-        currentInfo.connectedClients = remoteServer.io.engine.clientsCount;
-      }
-      addLog('Phone disconnected');
+    remoteServer = createRemoteServer({
+      pin: pinOption,
+      onFileReceived: (files) => {
+        const names = files.map((f) => f.name).join(', ');
+        addLog(`Received from phone: ${names}`);
+      },
+      onShutdown: () => {
+        if (!isQuitting) {
+          isQuitting = true;
+          app.quit();
+        }
+      },
     });
-  });
 
-  addLog(`Server started on ${info.localIp}:${info.port} (PIN ${info.pin})`);
-  broadcastState();
+    const info = await remoteServer.start();
+    const qrDataUrl = await QRCode.toDataURL(info.url, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+
+    currentInfo = {
+      ...currentInfo,
+      running: true,
+      localIp: info.localIp,
+      port: info.port,
+      pin: info.pin,
+      url: info.url,
+      mdnsUrl: info.mdnsUrl,
+      qrDataUrl,
+      connectedClients: 0,
+    };
+
+    remoteServer.io.on('connection', (socket) => {
+      currentInfo.connectedClients = remoteServer.io.engine.clientsCount;
+      addLog(`Phone connected (${socket.handshake.address})`);
+
+      socket.on('disconnect', () => {
+        if (remoteServer) {
+          currentInfo.connectedClients = remoteServer.io.engine.clientsCount;
+        }
+        addLog('Phone disconnected');
+      });
+    });
+
+    addLog(`Server started on ${info.localIp}:${info.port} (PIN ${info.pin})`);
+    broadcastState();
+  } catch (err) {
+    currentInfo.running = false;
+    addLog(`Error: ${err.message}`);
+    broadcastState();
+  }
 }
 
 function createWindow() {

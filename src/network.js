@@ -50,10 +50,13 @@ function listenOnAvailablePort(server, startPort = 3000, host = '0.0.0.0', maxAt
     let attempts = 0;
 
     const onError = (err) => {
-      if (err.code === 'EADDRINUSE' && attempts < maxAttempts) {
+      if ((err.code === 'EADDRINUSE' || err.code === 'EACCES') && attempts < maxAttempts) {
         attempts += 1;
         port += 1;
         server.listen(port, host);
+      } else if ((err.code === 'EADDRINUSE' || err.code === 'EACCES') && port !== 0) {
+        port = 0;
+        server.listen(0, host);
       } else {
         server.removeListener('listening', onListening);
         reject(err);

@@ -191,7 +191,7 @@ function createRemoteServer(options = {}) {
       clearSleepTimer();
       return { ok: true, ...getSleepTimerState() };
     }
-    if (!allowedMinutes.has(minutes) || (action !== 'sleep' && action !== 'shutdown')) {
+    if (!allowedMinutes.has(minutes) || (action !== 'sleep' && action !== 'shutdown' && action !== 'restart')) {
       return { ok: false, error: 'Invalid timer configuration' };
     }
 
@@ -388,7 +388,7 @@ function createRemoteServer(options = {}) {
 
     socket.on('power_action', async (payload, ack) => {
       const action = typeof payload === 'string' ? payload : payload?.action;
-      if (action !== 'sleep' && action !== 'shutdown') {
+      if (action !== 'sleep' && action !== 'shutdown' && action !== 'restart') {
         console.warn(`[WARN] Rejected invalid power_action from ${socket.id}:`, action);
         if (typeof ack === 'function') {
           ack({ ok: false, error: 'Invalid power action' });

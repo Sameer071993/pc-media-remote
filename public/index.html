@@ -899,7 +899,10 @@
           </div>
         </div>
 
-        <button type="button" id="shutdownPcBtn" class="btn-compact" style="width: 100%; color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);">Shutdown PC</button>
+        <div class="row-2">
+          <button type="button" id="restartPcBtn" class="btn-compact" style="color: #fde68a; border-color: rgba(245, 158, 11, 0.35);">Restart PC</button>
+          <button type="button" id="shutdownPcBtn" class="btn-compact" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.35);">Shutdown PC</button>
+        </div>
 
         <button type="button" id="shutdownBtn" class="btn-shutdown">
           <svg viewBox="0 0 24 24">
@@ -1039,6 +1042,7 @@
       const controlButtons = document.querySelectorAll('button[data-cmd]');
       const launchButtons = document.querySelectorAll('button[data-launch]');
       const timerButtons = document.querySelectorAll('button[data-minutes]');
+      const restartPcBtn = document.getElementById('restartPcBtn');
       const shutdownPcBtn = document.getElementById('shutdownPcBtn');
       const shutdownBtn = document.getElementById('shutdownBtn');
       const urlForm = document.getElementById('urlForm');
@@ -1069,6 +1073,7 @@
         controlButtons.forEach((btn) => { btn.disabled = !isConnected; });
         launchButtons.forEach((btn) => { btn.disabled = !isConnected; });
         timerButtons.forEach((btn) => { btn.disabled = !isConnected; });
+        restartPcBtn.disabled = !isConnected;
         shutdownPcBtn.disabled = !isConnected;
         shutdownBtn.disabled = !isConnected;
         openUrlBtn.disabled = !isConnected;
@@ -1479,7 +1484,17 @@
         });
       });
 
-      // Immediate Shutdown PC & Shutdown Server Modal
+      // Immediate Restart / Shutdown PC & Shutdown Server Modal
+      restartPcBtn.addEventListener('click', () => {
+        if (!socket.connected) return;
+        haptic();
+        pendingConfirmAction = 'restart_pc';
+        modalTitle.textContent = 'Restart Laptop Now?';
+        modalDesc.textContent = 'This will immediately restart your laptop.';
+        confirmShutdown.textContent = 'Restart PC';
+        confirmModal.classList.add('open');
+      });
+
       shutdownPcBtn.addEventListener('click', () => {
         if (!socket.connected) return;
         haptic();
@@ -1506,7 +1521,9 @@
       confirmShutdown.addEventListener('click', () => {
         haptic();
         confirmModal.classList.remove('open');
-        if (pendingConfirmAction === 'shutdown_pc') {
+        if (pendingConfirmAction === 'restart_pc') {
+          socket.emit('power_action', { action: 'restart' });
+        } else if (pendingConfirmAction === 'shutdown_pc') {
           socket.emit('power_action', { action: 'shutdown' });
         } else {
           socket.emit('shutdown_server');

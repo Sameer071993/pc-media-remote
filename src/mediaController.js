@@ -383,11 +383,11 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
   }
 
   /**
-   * Put the laptop to sleep or shut it down (used by sleep timer).
-   * @param {'sleep' | 'shutdown'} action
+   * Put the laptop to sleep, restart it, or shut it down.
+   * @param {'sleep' | 'shutdown' | 'restart'} action
    */
   async executePowerAction(action) {
-    if (action !== 'sleep' && action !== 'shutdown') {
+    if (action !== 'sleep' && action !== 'shutdown' && action !== 'restart') {
       return { ok: false, reason: 'Invalid power action' };
     }
     if (this.dryRun) {
@@ -401,7 +401,8 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
             err ? reject(err) : resolve({ ok: true, action })
           );
         } else {
-          execFile('shutdown.exe', ['/s', '/t', '0'], (err) =>
+          const flag = action === 'restart' ? '/r' : '/s';
+          execFile('shutdown.exe', [flag, '/t', '0'], (err) =>
             err ? reject(err) : resolve({ ok: true, action })
           );
         }
@@ -411,12 +412,14 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
             err ? reject(err) : resolve({ ok: true, action })
           );
         } else {
-          execFile('osascript', ['-e', 'tell app "System Events" to shut down'], (err) =>
+          const cmd = action === 'restart' ? 'restart' : 'shut down';
+          execFile('osascript', ['-e', `tell app "System Events" to ${cmd}`], (err) =>
             err ? reject(err) : resolve({ ok: true, action })
           );
         }
       } else {
-        execFile('systemctl', [action === 'sleep' ? 'suspend' : 'poweroff'], (err) =>
+        const unit = action === 'sleep' ? 'suspend' : action === 'restart' ? 'reboot' : 'poweroff';
+        execFile('systemctl', [unit], (err) =>
           err ? reject(err) : resolve({ ok: true, action })
         );
       }

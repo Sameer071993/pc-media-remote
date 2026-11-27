@@ -164,6 +164,8 @@ async function runTests() {
     assert.deepStrictEqual(sleepNowAck, { ok: true, action: 'sleep' });
     const shutdownNowAck = await emitWithAck(validSocket.client, 'power_action', { action: 'shutdown' });
     assert.deepStrictEqual(shutdownNowAck, { ok: true, action: 'shutdown' });
+    const restartNowAck = await emitWithAck(validSocket.client, 'power_action', { action: 'restart' });
+    assert.deepStrictEqual(restartNowAck, { ok: true, action: 'restart' });
     const badPowerAck = await emitWithAck(validSocket.client, 'power_action', { action: 'format_c' });
     assert.deepStrictEqual(badPowerAck, { ok: false, error: 'Invalid power action' });
     console.log('✓ Immediate power_action (sleep/shutdown) & validation verified');

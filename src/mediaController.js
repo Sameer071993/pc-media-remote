@@ -295,6 +295,49 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     }
 
     if (this.platform === 'darwin') {
+      if (command === 'mouse_move' || command === 'left_click' || command === 'right_click' || command === 'scroll') {
+        const dx = clampInt(params.dx, -500, 500);
+        const dy = clampInt(params.dy, -500, 500);
+        const jxaLines = [
+          'ObjC.import("CoreGraphics");',
+          'var ev = $.CGEventCreate(null);',
+          'var pos = $.CGEventGetLocation(ev);',
+        ];
+        if (command === 'mouse_move') {
+          jxaLines.push(
+            `var target = { x: Math.max(0, pos.x + (${dx})), y: Math.max(0, pos.y + (${dy})) };`,
+            'var mv = $.CGEventCreateMouseEvent(null, $.kCGEventMouseMoved, target, $.kCGMouseButtonLeft);',
+            '$.CGEventPost($.kCGHIDEventTap, mv);'
+          );
+        } else if (command === 'left_click') {
+          jxaLines.push(
+            'var down = $.CGEventCreateMouseEvent(null, $.kCGEventLeftMouseDown, pos, $.kCGMouseButtonLeft);',
+            'var up = $.CGEventCreateMouseEvent(null, $.kCGEventLeftMouseUp, pos, $.kCGMouseButtonLeft);',
+            '$.CGEventPost($.kCGHIDEventTap, down);',
+            '$.CGEventPost($.kCGHIDEventTap, up);'
+          );
+        } else if (command === 'right_click') {
+          jxaLines.push(
+            'var down = $.CGEventCreateMouseEvent(null, $.kCGEventRightMouseDown, pos, $.kCGMouseButtonRight);',
+            'var up = $.CGEventCreateMouseEvent(null, $.kCGEventRightMouseUp, pos, $.kCGMouseButtonRight);',
+            '$.CGEventPost($.kCGHIDEventTap, down);',
+            '$.CGEventPost($.kCGHIDEventTap, up);'
+          );
+        } else if (command === 'scroll') {
+          const sdy = clampInt(params.dy, -20, 20);
+          jxaLines.push(
+            `var sc = $.CGEventCreateScrollWheelEvent(null, $.kCGScrollEventUnitLine, 1, ${sdy});`,
+            '$.CGEventPost($.kCGHIDEventTap, sc);'
+          );
+        }
+        return new Promise((resolve, reject) => {
+          execFile('osascript', ['-l', 'JavaScript', '-e', jxaLines.join('\n')], (err) => {
+            if (err) return reject(err);
+            resolve({ ok: true, command });
+          });
+        });
+      }
+
       const script = MAC_SCRIPT_MAP[command];
       if (!script) return { ok: true, command };
       return new Promise((resolve, reject) => {

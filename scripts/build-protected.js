@@ -4,13 +4,29 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const STAGE = path.join(ROOT, 'build-stage');
-const ELECTRON_BIN = path.join(ROOT, 'dist', 'win-unpacked', 'PC Media Remote.exe');
+const isWin = process.platform === 'win32';
+const isMac = process.platform === 'darwin';
+const builderFlag = isMac ? '--mac' : '--win';
+
+function findElectronBinary() {
+  if (isWin) {
+    return path.join(ROOT, 'dist', 'win-unpacked', 'PC Media Remote.exe');
+  }
+  if (isMac) {
+    const candidates = [
+      path.join(ROOT, 'dist', 'mac', 'PC Media Remote.app', 'Contents', 'MacOS', 'PC Media Remote'),
+      path.join(ROOT, 'dist', 'mac-arm64', 'PC Media Remote.app', 'Contents', 'MacOS', 'PC Media Remote'),
+    ];
+    return candidates.find((p) => fs.existsSync(p)) || candidates[0];
+  }
+  return path.join(ROOT, 'dist', 'linux-unpacked', 'pc-media-remote');
+}
 
 function cleanStage() {
   if (!fs.existsSync(STAGE)) return;
   const stageModules = path.join(STAGE, 'node_modules');
   if (fs.existsSync(stageModules)) {
-    fs.rmdirSync(stageModules);
+    fs.rmSync(stageModules, { recursive: false, force: true });
   }
   fs.rmSync(STAGE, { recursive: true, force: true });
 }
@@ -29,13 +45,15 @@ function copyDir(src, dest) {
 }
 
 function main() {
-  if (!fs.existsSync(ELECTRON_BIN)) {
-    console.log('[1/4] Preparing Electron 45 binary...');
+  let electronBin = findElectronBinary();
+  if (!fs.existsSync(electronBin)) {
+    console.log('[1/4] Preparing Electron binary...');
     execFileSync(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['electron-builder', '--win', '--dir'],
-      { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' }
+      isWin ? 'npx.cmd' : 'npx',
+      ['electron-builder', builderFlag, '--dir'],
+      { cwd: ROOT, stdio: 'inherit', shell: isWin }
     );
+    electronBin = findElectronBinary();
   }
 
   console.log('[2/4] Preparing bytecode staging directory...');
@@ -65,8 +83,7 @@ function main() {
   };
   fs.writeFileSync(path.join(STAGE, 'package.json'), JSON.stringify(pkg, null, 2));
 
-  // Junction node_modules into stage
-  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(STAGE, 'node_modules'), 'junction');
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(STAGE, 'node_modules'), isWin ? 'junction' : 'dir');
 
   console.log('[3/4] Compiling JS to Electron V8 bytecode (.jsc) via bytenode...');
   const targets = [
@@ -88,7 +105,7 @@ function main() {
     }
   `;
 
-  const compileRes = spawnSync(ELECTRON_BIN, ['-e', compileScript], {
+  const compileRes = spawnSync(electronBin, ['-e', compileScript], {
     cwd: ROOT,
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     stdio: 'inherit',
@@ -105,15 +122,15 @@ function main() {
     fs.writeFileSync(path.join(STAGE, t.src), stub, 'utf8');
   }
 
-  console.log('[4/4] Packaging protected .exe with electron-builder...');
+  console.log(`[4/4] Packaging protected build (${builderFlag}) with electron-builder...`);
   execFileSync(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    ['electron-builder', '--win', '--projectDir', STAGE],
-    { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' }
+    isWin ? 'npx.cmd' : 'npx',
+    ['electron-builder', builderFlag, '--projectDir', STAGE],
+    { cwd: ROOT, stdio: 'inherit', shell: isWin }
   );
 
   cleanStage();
-  console.log('✓ Protected bytenode .exe build complete in dist/');
+  console.log('✓ Protected bytenode build complete in dist/');
 }
 
 try {

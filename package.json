@@ -8,6 +8,7 @@
     "test": "node test/verify.js",
     "electron": "electron .",
     "build:exe": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
     "build:protected": "node scripts/build-protected.js"
   },
   "build": {
@@ -28,6 +29,26 @@
       "target": [
         "nsis",
         "portable"
+      ]
+    },
+    "mac": {
+      "icon": "public/icon-512.png",
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "nsis": {
